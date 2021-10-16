@@ -45,11 +45,11 @@ function metadata() {
 {
   "name": "url",
   "value": "$(jq -r .url <<< $raw)"
-}
+},
 {
   "name": "checksum",
   "value": "$(jq -r .checksum <<< $raw)"
-}
+},
 {
   "name": "size",
   "value": "$(jq -r .size <<< $raw)"
