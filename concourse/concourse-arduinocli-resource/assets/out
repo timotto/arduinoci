@@ -1,0 +1,8 @@
+#!/bin/sh
+
+exec 3>&1
+exec 1>&2
+
+echo "put is not supported by this resource" 1>&2
+
+exit 1

@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -eo pipefail
+
+. "$(dirname "$0")"/common
+
+data=$(download)
+meta=$(metadata $version <<< $data)
+
+cd "$1"
+
+echo $version > version
+
+cat >&3 <<EOT
+{
+  "version": {
+    "version": "$version"
+  },
+  "metadata": [
+$meta
+  ]
+}
+EOT
