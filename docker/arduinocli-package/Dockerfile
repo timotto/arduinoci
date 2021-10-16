@@ -10,4 +10,4 @@ ARG platform
 ARG build
 
 RUN arduino-cli core --additional-urls ${board_manager_url} update-index && \
-    arduino-cli core --additional-urls ${board_manager_url} install ${package}:${platform}
+    arduino-cli core --additional-urls ${board_manager_url} install ${package}:${platform}@${version}
