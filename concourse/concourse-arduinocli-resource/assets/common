@@ -47,6 +47,14 @@ function metadata() {
   "value": "$board_manager_url"
 },
 {
+  "name": "package",
+  "value": "$package"
+},
+{
+  "name": "platform",
+  "value": "$platform"
+},
+{
   "name": "url",
   "value": "$(jq -r .url <<< $raw)"
 },

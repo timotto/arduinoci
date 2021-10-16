@@ -11,6 +11,8 @@ cd "$1"
 
 echo $version > version
 echo $board_manager_url > board_manager_url
+echo $package > package
+echo $platform > platform
 
 cat >&3 <<EOT
 {
