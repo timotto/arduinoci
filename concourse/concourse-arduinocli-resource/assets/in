@@ -10,6 +10,7 @@ meta=$(metadata $version <<< $data)
 cd "$1"
 
 echo $version > version
+echo $board_manager_url > board_manager_url
 
 cat >&3 <<EOT
 {

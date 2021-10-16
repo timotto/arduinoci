@@ -43,6 +43,10 @@ function metadata() {
 
   cat <<EOT
 {
+  "name": "board_manager_url",
+  "value": "$board_manager_url"
+},
+{
   "name": "url",
   "value": "$(jq -r .url <<< $raw)"
 },
