@@ -1,3 +1,3 @@
 # CI components for Arduino
 
-Arduino development with Docker for Continuous Integration
+Arduino development with [Concourse](https://concourse-ci.org/) and [Docker images](https://hub.docker.com/u/arduinoci)

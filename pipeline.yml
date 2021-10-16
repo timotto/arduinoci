@@ -1,0 +1,363 @@
+meta:
+  git_resource: &git_resource
+    type: git
+    icon: github
+    webhook_token: ((webhook_token))
+    check_every: 24h
+  git_source: &git_source
+    uri: ((source_uri))
+    branch: main
+    private_key: ((github.private_key))
+
+  semver_resource: &semver_resource
+    type: semver
+    icon: numbers
+  semver_source: &semver_source
+    driver: git
+    uri: ((source_uri))
+    branch: version
+    private_key: ((github.private_key))
+
+  github_release_resource: &github_release_resource
+    type: github-release
+    check_every: 24h
+    icon: bucket
+  github_release_source: &github_release_source
+    access_token: ((github.access_token))
+  
+  arduinocli_package_resource: &arduinocli_package_resource
+    type: arduinocli-package
+    icon: bucket
+  
+  docker_resource: &docker_resource
+    type: docker-image
+    icon: bucket
+  docker_source: &docker_source
+    username: ((dockerhub.username))
+    password: ((dockerhub.password))
+
+  alpine_task: &alpine_task
+    platform: linux
+    image_resource:
+      type: registry-image
+      source:
+        repository: alpine
+        tag: latest
+
+  get_package: &get_package
+    get: package
+    trigger: true
+  get_version: &get_version
+    get: image-version
+    params: {bump: patch}
+  get_package_image: &get_package_image
+    in_parallel:
+    - get: package-image-source
+      resource: arduinocli-package-image-source
+      trigger: true
+    - get: arduino-image
+      passed: [arduino-image]
+      trigger: true
+      params:
+        save: true
+    - get: arduino-release
+      passed: [arduino-image]
+  tag_package_task: &tag_package_task
+    task: tag
+    config:
+      <<: *alpine_task
+      inputs:
+      - name: package
+      - name: image-version
+      - name: arduino-release
+      outputs:
+      - name: docker
+      run:
+        path: sh
+        args:
+        - -ec
+        - |
+          version=`cat package/version`
+          board_manager_url=`cat package/board_manager_url`
+          package=`cat package/package`
+          platform=`cat package/platform`
+          image_version=`cat image-version/version`
+          arduino_version=`cat arduino-release/version`
+
+          cat > docker/build-args.json <<EOT
+          {
+            "board_manager_url": "$board_manager_url",
+            "package": "$package",
+            "platform": "$platform",
+            "version": "$version",
+            "build": "$image_version"
+          }
+          EOT
+          echo "v${version} ${version}-${arduino_version} v${version}-${arduino_version}-${image_version}" > docker/tags
+
+          cat docker/build-args.json
+          cat docker/tags
+  put_package_image: &put_package_image
+    put: arduinocli-package-image
+    params:
+      build: package-image-source/docker/arduinocli-package
+      build_args_file: docker/build-args.json
+      tag_as_latest: false
+      additional_tags: docker/tags
+      load_base: arduino-image
+    get_params:
+      skip_download: true
+  put_version: &put_version
+    put: image-version
+    params: {bump: patch}
+
+# workaround for check error when using access_token
+# error running command: illegal base64 data at input byte 2
+resource_types:
+- name: github-release
+  type: registry-image
+  source:
+    repository: concourse/github-release-resource
+    tag: "1.6.4"
+
+- name: arduinocli-package
+  type: registry-image
+  source:
+    repository: arduinoci/concourse-arduinocli-resource
+    tag: "v0.0.4"
+
+resources:
+- name: arduino-image
+  <<: *docker_resource
+  source:
+    <<: *docker_source
+    repository: ((docker_prefix))/ci-arduino
+
+- name: arduino-image-version
+  <<: *semver_resource
+  source:
+    <<: *semver_source
+    file: arduino-image
+
+- name: arduino-image-source
+  <<: *git_resource
+  source:
+    <<: *git_source
+    paths: [docker/arduino]
+
+- name: arduino-release
+  <<: *github_release_resource
+  source:
+    <<: *github_release_source
+    owner: arduino
+    repository: arduino
+
+- name: arduino-cli-release
+  <<: *github_release_resource
+  source:
+    <<: *github_release_source
+    owner: arduino
+    repository: arduino-cli
+
+
+- name: arduinocli-package-image-source
+  <<: *git_resource
+  source:
+    <<: *git_source
+    paths: [docker/arduinocli-package]
+
+
+- name: arduino-esp32-image
+  <<: *docker_resource
+  source:
+    <<: *docker_source
+    repository: ((docker_prefix))/ci-arduino-esp32
+
+- name: arduino-esp32-image-version
+  <<: *semver_resource
+  source:
+    <<: *semver_source
+    file: arduino-esp32-image
+
+- name: arduino-esp32-release
+  <<: *arduinocli_package_resource
+  source:
+    board_manager_url: https://dl.espressif.com/dl/package_esp32_index.json
+    package: esp32
+    platform: esp32
+
+
+- name: arduino-esp8266-image
+  <<: *docker_resource
+  source:
+    <<: *docker_source
+    repository: ((docker_prefix))/ci-arduino-esp8266
+
+- name: arduino-esp8266-image-version
+  <<: *semver_resource
+  source:
+    <<: *semver_source
+    file: arduino-esp8266-image
+
+- name: arduino-esp8266-release
+  <<: *arduinocli_package_resource
+  source:
+    board_manager_url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
+    package: esp8266
+    platform: esp8266
+
+
+- name: pipeline-source
+  <<: *git_resource
+  source:
+    <<: *git_source
+    paths: [pipeline.yml]
+
+
+- name: concourse-arduinocli-resource-source
+  <<: *git_resource
+  source:
+    <<: *git_source
+    paths: [concourse/concourse-arduinocli-resource]
+
+- name: concourse-arduinocli-resource-image
+  <<: *docker_resource
+  source:
+    <<: *docker_source
+    repository: ((docker_prefix))/concourse-arduinocli-resource
+
+- name: concourse-arduinocli-resource-version
+  <<: *semver_resource
+  source:
+    <<: *semver_source
+    file: concourse-arduinocli-resource
+
+jobs:
+- name: arduino-image
+  serial: true
+  plan:
+  - in_parallel:
+    - get: arduino-release
+      trigger: true
+      params: {include_source_tarball: true}
+    - get: arduino-cli-release
+      trigger: true
+      params:
+        globs: [arduino-cli_*_Linux_64bit.tar.gz]
+    - get: arduino-image-source
+      trigger: true
+    - get: arduino-image-version
+      params: {bump: patch}
+  - task: tag
+    config:
+      <<: *alpine_task
+      inputs:
+      - name: arduino-release
+      - name: arduino-cli-release
+      - name: arduino-image-source
+      - name: arduino-image-version
+      outputs:
+      - name: docker
+      run:
+        path: sh
+        args:
+        - -ec
+        - |
+          arduino_version=`cat arduino-release/version`
+          arduino_cli_version=`cat arduino-cli-release/version`
+          image_version=`cat arduino-image-version/version`
+
+          cp -rv arduino-image-source/docker/arduino/Dockerfile docker/
+          cp -rv arduino-release docker/
+          cp -rv arduino-cli-release docker/
+
+          echo '{"version": "'${arduino_version}'", "cli_version": "'${arduino_cli_version}'", "build": "'${image_version}'"}' > docker/build-args.json
+          echo "v${arduino_version} v${arduino_version}-${arduino_cli_version} v${arduino_version}-${arduino_cli_version}-${image_version}" > docker/tags
+
+          cat docker/build-args.json
+          cat docker/tags
+  - put: arduino-image
+    params:
+      build: docker
+      build_args_file: docker/build-args.json
+      tag_as_latest: true
+      additional_tags: docker/tags
+  - put: arduino-image-version
+    params: {bump: patch}
+
+- name: arduino-esp32-image
+  serial: true
+  plan:
+  - in_parallel:
+    - resource: arduino-esp32-release
+      <<: *get_package
+    - resource: arduino-esp32-image-version
+      <<: *get_version
+  - <<: *get_package_image
+  - <<: *tag_package_task
+  - resource: arduino-esp32-image
+    <<: *put_package_image
+  - resource: arduino-esp32-image-version
+    <<: *put_version
+
+
+- name: arduino-esp8266-image
+  serial: true
+  plan:
+  - in_parallel:
+    - resource: arduino-esp8266-release
+      <<: *get_package
+    - resource: arduino-esp8266-image-version
+      <<: *get_version
+  - <<: *get_package_image
+  - <<: *tag_package_task
+  - resource: arduino-esp8266-image
+    <<: *put_package_image
+  - resource: arduino-esp8266-image-version
+    <<: *put_version
+
+
+- name: pipeline
+  serial: true
+  plan:
+  - get: pipeline-source
+    trigger: true
+  - set_pipeline: ((pipeline_name))
+    file: pipeline-source/pipeline.yml
+    vars:
+      source_uri: ((source_uri))
+      pipeline_name: ((pipeline_name))
+      docker_prefix: ((docker_prefix))
+
+- name: concourse-arduinocli-resource
+  serial: true
+  plan:
+  - in_parallel:
+    - get: concourse-arduinocli-resource-source
+      trigger: true
+    - get: concourse-arduinocli-resource-version
+      params: {bump: patch}
+
+  - put: concourse-arduinocli-resource-image
+    params:
+      build: concourse-arduinocli-resource-source/concourse/concourse-arduinocli-resource
+      tag_as_latest: true
+      tag_file: concourse-arduinocli-resource-version/version
+      tag_prefix: v
+    get_params:
+      skip_download: true
+
+  - put: concourse-arduinocli-resource-version
+    params: {bump: patch}
+
+groups:
+- name: docker-images
+  jobs:
+  - arduino-image
+  - arduino-esp32-image
+  - arduino-esp8266-image
+
+- name: ci
+  jobs:
+  - concourse-arduinocli-resource
+  - pipeline
