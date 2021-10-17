@@ -36,6 +36,13 @@ meta:
     username: ((dockerhub.username))
     password: ((dockerhub.password))
 
+  remote_docker_resource: &remote_docker_resource
+    type: remote-docker-image
+    icon: bucket
+  remote_docker_source: &remote_docker_source
+    <<: *docker_source
+    dockerd: ((dockerd))
+
   alpine_task: &alpine_task
     platform: linux
     image_resource:
@@ -125,6 +132,13 @@ resource_types:
   source:
     repository: arduinoci/concourse-arduinocli-resource
     tag: "v0.0.4"
+
+- name: remote-docker-image
+  type: registry-image
+  privileged: true
+  source:
+    repository: timotto/docker-image-resource
+    tag: latest
 
 resources:
 - name: arduino-image
@@ -231,6 +245,39 @@ resources:
   source:
     <<: *semver_source
     file: concourse-arduinocli-resource
+
+
+- name: concourse-rpi-worker-source
+  <<: *git_resource
+  source:
+    <<: *git_source
+    paths: [concourse/rpi-concourse-worker]
+
+- name: concourse-rpi-worker-image
+  <<: *remote_docker_resource
+  source:
+    <<: *remote_docker_source
+    repository: ((docker_prefix))/concourse-rpi-worker
+
+- name: concourse-esp-rpi-worker-image
+  <<: *remote_docker_resource
+  source:
+    <<: *remote_docker_source
+    repository: ((docker_prefix))/concourse-esp-rpi-worker
+
+- name: concourse-rpi-worker-version
+  <<: *semver_resource
+  source:
+    <<: *semver_source
+    file: concourse-rpi-worker
+
+- name: concourse-release
+  <<: *github_release_resource
+  source:
+    <<: *github_release_source
+    owner: concourse
+    repository: concourse
+
 
 jobs:
 - name: arduino-image
@@ -350,6 +397,89 @@ jobs:
   - put: concourse-arduinocli-resource-version
     params: {bump: patch}
 
+- name: concourse-rpi-worker
+  serial: true
+  plan:
+  - in_parallel:
+    - get: concourse-rpi-worker-source
+      trigger: true
+    - get: concourse-rpi-worker-version
+      params: {bump: patch}
+    - get: concourse-release
+      trigger: true
+      params:
+        globs: [none]
+        include_source_tarball: true
+  - task: build-concourse
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: golang
+          tag: alpine
+      inputs:
+      - name: concourse-rpi-worker-source
+      - name: concourse-rpi-worker-version
+      - name: concourse-release
+      outputs:
+      - name: docker
+      caches:
+      - path: /go
+      params:
+        GOOS: linux
+        GOARCH: arm
+        GOARM: "7"
+        CGO_ENABLED: "0"
+      run:
+        path: sh
+        args:
+        - -ec
+        - |
+          target=$PWD/docker
+          concourse_version=$(cat concourse-release/version)
+          image_version=$(cat concourse-rpi-worker-version/version)
+
+          echo "${concourse_version}" \
+          > docker/tag
+
+          echo "${concourse_version}-${image_version}" \
+          > docker/tags
+          
+          cp -v \
+            concourse-rpi-worker-source/concourse/rpi-concourse-worker/Dockerfile \
+            $target/Dockerfile
+          
+          cd concourse-release
+          tar zxf source.tar.gz
+          cd concourse-concourse-*/
+          go build \
+            -a -tags netgo \
+            -ldflags '-w' \
+            -o $target/concourse-linux-armv7 \
+            ./cmd/concourse
+  - put: concourse-rpi-worker-image
+    params:
+      build: docker
+      tag_as_latest: false
+      tag_file: docker/tag
+      additional_tags: docker/tags
+    get_params:
+      skip_download: true
+  - put: concourse-esp-rpi-worker-image
+    params:
+      build: docker
+      tag_as_latest: false
+      tag_file: docker/tag
+      additional_tags: docker/tags
+      build_args:
+        extra_packages: "go python3 py3-pip py3-cryptography python3-dev gcc libc-dev libffi-dev openssl-dev"
+        extra_run: "pip install esptool"
+    get_params:
+      skip_download: true
+  - put: concourse-rpi-worker-version
+    params: {bump: patch}
+
 groups:
 - name: docker-images
   jobs:
@@ -357,7 +487,11 @@ groups:
   - arduino-esp32-image
   - arduino-esp8266-image
 
+- name: concourse
+  jobs:
+  - concourse-rpi-worker
+  - concourse-arduinocli-resource
+
 - name: ci
   jobs:
-  - concourse-arduinocli-resource
   - pipeline
