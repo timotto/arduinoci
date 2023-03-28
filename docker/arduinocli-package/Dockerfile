@@ -1,4 +1,4 @@
-FROM arduinoci/ci-arduino:latest
+FROM arduinoci/ci-arduino-cli:latest
 
 # for esptool.py
 RUN ln -s /usr/bin/python3 /usr/bin/python
