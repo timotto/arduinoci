@@ -62,13 +62,13 @@ meta:
     - get: package-image-source
       resource: arduinocli-package-image-source
       trigger: true
-    - get: arduino-image
-      passed: [arduino-image]
+    - get: arduino-cli-image
+      passed: [arduino-cli-image]
       trigger: true
       params:
         save: true
-    - get: arduino-release
-      passed: [arduino-image]
+    - get: arduino-cli-release
+      passed: [arduino-cli-image]
   tag_package_task: &tag_package_task
     task: tag
     config:
@@ -76,7 +76,7 @@ meta:
       inputs:
       - name: package
       - name: image-version
-      - name: arduino-release
+      - name: arduino-cli-release
       outputs:
       - name: docker
       run:
@@ -89,7 +89,7 @@ meta:
           package=`cat package/package`
           platform=`cat package/platform`
           image_version=`cat image-version/version`
-          arduino_version=`cat arduino-release/version`
+          arduino_cli_version=`cat arduino-cli-release/version`
 
           cat > docker/build-args.json <<EOT
           {
@@ -100,7 +100,7 @@ meta:
             "build": "$image_version"
           }
           EOT
-          echo "v${version} ${version}-${arduino_version} v${version}-${arduino_version}-${image_version}" > docker/tags
+          echo "v${version} ${version}-${arduino_cli_version} v${version}-${arduino_cli_version}-${image_version}" > docker/tags
 
           cat docker/build-args.json
           cat docker/tags
@@ -111,7 +111,7 @@ meta:
       build_args_file: docker/build-args.json
       tag_as_latest: false
       additional_tags: docker/tags
-      load_base: arduino-image
+      load_base: arduino-cli-image
     get_params:
       skip_download: true
   put_version: &put_version
