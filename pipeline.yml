@@ -166,6 +166,24 @@ resources:
     owner: arduino
     repository: arduino
 
+- name: arduino-cli-image
+  <<: *docker_resource
+  source:
+    <<: *docker_source
+    repository: ((docker_prefix))/ci-arduino-cli
+
+- name: arduino-cli-image-version
+  <<: *semver_resource
+  source:
+    <<: *semver_source
+    file: arduino-cli-image
+
+- name: arduino-cli-image-source
+  <<: *git_resource
+  source:
+    <<: *git_source
+    paths: [docker/arduino-cli]
+
 - name: arduino-cli-release
   <<: *github_release_resource
   source:
@@ -332,6 +350,52 @@ jobs:
   - put: arduino-image-version
     params: {bump: patch}
 
+- name: arduino-cli-image
+  serial: true
+  plan:
+  - in_parallel:
+    - get: arduino-cli-release
+      trigger: true
+      params:
+        globs: [arduino-cli_*_Linux_64bit.tar.gz]
+    - get: arduino-cli-image-source
+      trigger: true
+    - get: arduino-cli-image-version
+      params: {bump: patch}
+  - task: tag
+    config:
+      <<: *alpine_task
+      inputs:
+      - name: arduino-cli-release
+      - name: arduino-cli-image-source
+      - name: arduino-cli-image-version
+      outputs:
+      - name: docker
+      run:
+        path: sh
+        args:
+        - -ec
+        - |
+          arduino_cli_version=`cat arduino-cli-release/version`
+          image_version=`cat arduino-cli-image-version/version`
+
+          cp -rv arduino-cli-image-source/docker/arduino/Dockerfile docker/
+          cp -rv arduino-cli-release docker/
+
+          echo '{"cli_version": "'${arduino_cli_version}'"}' > docker/build-args.json
+          echo "v${arduino_cli_version} v${arduino_cli_version}-${image_version}" > docker/tags
+
+          cat docker/build-args.json
+          cat docker/tags
+  - put: arduino-cli-image
+    params:
+      build: docker
+      build_args_file: docker/build-args.json
+      tag_as_latest: true
+      additional_tags: docker/tags
+  - put: arduino-cli-image-version
+    params: {bump: patch}
+
 - name: arduino-esp32-image
   serial: true
   plan:
@@ -484,6 +548,7 @@ groups:
 - name: docker-images
   jobs:
   - arduino-image
+  - arduino-cli-image
   - arduino-esp32-image
   - arduino-esp8266-image
 
