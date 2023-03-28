@@ -100,7 +100,7 @@ meta:
             "build": "$image_version"
           }
           EOT
-          echo "v${version} ${version}-${arduino_cli_version} v${version}-${arduino_cli_version}-${image_version}" > docker/tags
+          echo "v${version} v${version}-${arduino_cli_version} v${version}-${arduino_cli_version}-${image_version}" > docker/tags
 
           cat docker/build-args.json
           cat docker/tags
