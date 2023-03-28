@@ -379,7 +379,7 @@ jobs:
           arduino_cli_version=`cat arduino-cli-release/version`
           image_version=`cat arduino-cli-image-version/version`
 
-          cp -rv arduino-cli-image-source/docker/arduino/Dockerfile docker/
+          cp -rv arduino-cli-image-source/docker/arduino-cli/Dockerfile docker/
           cp -rv arduino-cli-release docker/
 
           echo '{"cli_version": "'${arduino_cli_version}'"}' > docker/build-args.json
