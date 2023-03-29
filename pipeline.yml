@@ -131,7 +131,7 @@ resource_types:
   type: registry-image
   source:
     repository: arduinoci/concourse-arduinocli-resource
-    tag: "v0.0.4"
+    tag: "v0.0.6"
 
 - name: remote-docker-image
   type: registry-image
@@ -212,6 +212,25 @@ resources:
     board_manager_url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
     package: esp8266
     platform: esp8266
+
+
+- name: arduino-rp2040-image
+  <<: *docker_resource
+  source:
+    <<: *docker_source
+    repository: ((docker_prefix))/ci-arduino-rp2040
+
+- name: arduino-rp2040-image-version
+  <<: *semver_resource
+  source:
+    <<: *semver_source
+    file: arduino-rp2040-image
+
+- name: arduino-rp2040-release
+  <<: *arduinocli_package_resource
+  source:
+    package: arduino
+    platform: mbed_rp2040
 
 
 - name: pipeline-source
@@ -351,6 +370,22 @@ jobs:
     <<: *put_version
 
 
+- name: arduino-rp2040-image
+  serial: true
+  plan:
+  - in_parallel:
+    - resource: arduino-rp2040-release
+      <<: *get_package
+    - resource: arduino-rp2040-image-version
+      <<: *get_version
+  - <<: *get_package_image
+  - <<: *tag_package_task
+  - resource: arduino-rp2040-image
+    <<: *put_package_image
+  - resource: arduino-rp2040-image-version
+    <<: *put_version
+
+
 - name: pipeline
   serial: true
   plan:
@@ -473,6 +508,7 @@ groups:
   - arduino-cli-image
   - arduino-esp32-image
   - arduino-esp8266-image
+  - arduino-rp2040-image
 
 - name: concourse
   jobs:
