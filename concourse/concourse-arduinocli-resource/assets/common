@@ -10,7 +10,6 @@ function common_main() {
 
   version=$(jq -r '.version.version // ""' <<< $payload)
 
-  test -n "$board_manager_url" || invalid board_manager_url
   test -n "$package" || invalid package
   test -n "$platform" || invalid platform
 }
@@ -25,7 +24,13 @@ function panic() {
 }
 
 function download() {
-  curl -fsL "${board_manager_url}"
+  if [ -n "$board_manager_url" ]
+  then
+    curl -fsL "${board_manager_url}"
+  else
+    curl -fsL https://downloads.arduino.cc/packages/package_index.tar.bz2 \
+    | tar jxO package_index.json
+  fi
 }
 
 function versions() {
