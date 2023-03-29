@@ -1,6 +1,8 @@
 FROM debian:stable-slim
 
 RUN apt-get update && apt-get install -y python3 python3-serial
+# for esptool.py
+RUN ln -s /usr/bin/python3 /usr/bin/python
 
 ADD arduino-cli-release /arduino-cli-release
 
