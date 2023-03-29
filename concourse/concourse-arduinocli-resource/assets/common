@@ -30,7 +30,7 @@ function download() {
 
 function versions() {
   local arg
-  arg='.packages[] | select(.name == "'$package'") | .platforms[] | select(.name == "'$platform'") | .version'
+  arg='.packages[] | select(.name == "'$package'") | .platforms[] | select(.architecture == "'$platform'") | .version'
 
   jq -r "${arg}" \
   | sort -V
@@ -38,7 +38,7 @@ function versions() {
 
 function metadata() {
   local arg raw
-  arg='.packages[] | select(.name == "'$package'") | .platforms[] | select(.name == "'$platform'") | select(.version == "'$1'")'
+  arg='.packages[] | select(.name == "'$package'") | .platforms[] | select(.architecture == "'$platform'") | select(.version == "'$1'")'
   raw=$(jq -r "${arg}")
 
   cat <<EOT
