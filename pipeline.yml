@@ -90,14 +90,19 @@ meta:
           platform=`cat package/platform`
           image_version=`cat image-version/version`
           arduino_cli_version=`cat arduino-cli-release/version`
+          
+          core_args=""
+          if [ -n "$board_manager_url" ]
+          then
+            core_args="--additional-urls $board_manager_url"
+          fi
 
           cat > docker/build-args.json <<EOT
           {
-            "board_manager_url": "$board_manager_url",
+            "core_args": "$core_args",
             "package": "$package",
             "platform": "$platform",
-            "version": "$version",
-            "build": "$image_version"
+            "version": "$version"
           }
           EOT
           echo "v${version} v${version}-${arduino_cli_version} v${version}-${arduino_cli_version}-${image_version}" > docker/tags
