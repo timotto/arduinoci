@@ -238,6 +238,26 @@ resources:
     platform: mbed_rp2040
 
 
+- name: arduino-pico-rp2040-image
+  <<: *docker_resource
+  source:
+    <<: *docker_source
+    repository: ((docker_prefix))/ci-arduino-pico-rp2040
+
+- name: arduino-pico-rp2040-image-version
+  <<: *semver_resource
+  source:
+    <<: *semver_source
+    file: arduino-rp2040-image
+
+- name: arduino-pico-rp2040-release
+  <<: *arduinocli_package_resource
+  source:
+    board_manager_url: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+    package: rp2040
+    platform: rp2040
+
+
 - name: pipeline-source
   <<: *git_resource
   source:
@@ -391,6 +411,22 @@ jobs:
     <<: *put_version
 
 
+- name: arduino-pico-rp2040-image
+  serial: true
+  plan:
+  - in_parallel:
+    - resource: arduino-pico-rp2040-release
+      <<: *get_package
+    - resource: arduino-pico-rp2040-image-version
+      <<: *get_version
+  - <<: *get_package_image
+  - <<: *tag_package_task
+  - resource: arduino-pico-rp2040-image
+    <<: *put_package_image
+  - resource: arduino-pico-rp2040-image-version
+    <<: *put_version
+
+
 - name: pipeline
   serial: true
   plan:
@@ -514,6 +550,7 @@ groups:
   - arduino-esp32-image
   - arduino-esp8266-image
   - arduino-rp2040-image
+  - arduino-pico-rp2040-image
 
 - name: concourse
   jobs:
