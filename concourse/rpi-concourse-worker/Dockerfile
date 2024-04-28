@@ -6,7 +6,7 @@ RUN apk update && apk add bash curl jq ${extra_packages}
 ARG extra_run=true
 RUN ${extra_run}
 
-ADD concourse-linux-armv7 /concourse
+ADD concourse-linux-arm64 /concourse
 
 VOLUME /keys
 

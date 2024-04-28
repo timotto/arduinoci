@@ -491,8 +491,7 @@ jobs:
       - path: /go
       params:
         GOOS: linux
-        GOARCH: arm
-        GOARM: "7"
+        GOARCH: arm64
         CGO_ENABLED: "0"
       run:
         path: sh
@@ -519,7 +518,7 @@ jobs:
           go build \
             -a -tags netgo \
             -ldflags '-w' \
-            -o $target/concourse-linux-armv7 \
+            -o $target/concourse-linux-arm64 \
             ./cmd/concourse
   - put: concourse-rpi-worker-image
     params:
