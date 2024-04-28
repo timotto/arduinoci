@@ -537,7 +537,7 @@ jobs:
       additional_tags: docker/tags
       build_args:
         extra_packages: "go python3 py3-pip py3-cryptography python3-dev gcc libc-dev libffi-dev openssl-dev"
-        extra_run: "pip install esptool"
+        extra_run: "pip install esptool --break-system-packages"
     get_params:
       skip_download: true
   - put: concourse-rpi-worker-version

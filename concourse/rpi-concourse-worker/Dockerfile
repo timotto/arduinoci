@@ -1,4 +1,4 @@
-FROM alpine:3.14
+FROM alpine:3.19
 
 ARG extra_packages
 RUN apk update && apk add bash curl jq ${extra_packages}
